@@ -14,22 +14,16 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Build Docker image
+        run: |
+          docker build -f Containerfile --no-cache -t quay.io/krkn-chaos/krkn-http-load:latest .
+          docker tag quay.io/krkn-chaos/krkn-http-load:latest quay.io/krkn-chaos/krkn-http-load:${GITHUB_REF##*/}
       - name: Login in quay
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-        uses: docker/login-action@v3
-        with:
-          registry: quay.io
-          username: ${{ secrets.QUAY_USERNAME }}
-          password: ${{ secrets.QUAY_PASSWORD }}
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Containerfile
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
-          tags: |
-            quay.io/krkn-chaos/krkn-http-load:latest
-            quay.io/krkn-chaos/krkn-http-load:${{ github.ref_name }}
+        run: docker login quay.io -u ${QUAY_USER} -p ${QUAY_TOKEN}
+        env:
+          QUAY_USER: ${{ secrets.QUAY_USERNAME }}
+          QUAY_TOKEN: ${{ secrets.QUAY_PASSWORD }}
+      - name: Push Docker image
+        run: |
+          docker push quay.io/krkn-chaos/krkn-http-load:latest
+          docker push quay.io/krkn-chaos/krkn-http-load:${GITHUB_REF##*/}
