@@ -5,25 +5,28 @@ on:
       - '*'
   pull_request:
 permissions:
-  pull-requests: write
-  contents: write
+  contents: read
 jobs:
   build-image:
     name: Build and push container image
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3
+        with:
+          persist-credentials: false
       - name: Build Docker image
         run: |
           docker build -f Containerfile --no-cache -t quay.io/krkn-chaos/krkn-http-load:latest .
           docker tag quay.io/krkn-chaos/krkn-http-load:latest quay.io/krkn-chaos/krkn-http-load:${GITHUB_REF##*/}
       - name: Login in quay
-        run: docker login quay.io -u ${QUAY_USER} -p ${QUAY_TOKEN}
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        run: printf '%s' "$QUAY_TOKEN" | docker login quay.io --username "$QUAY_USER" --password-stdin
         env:
           QUAY_USER: ${{ secrets.QUAY_USERNAME }}
           QUAY_TOKEN: ${{ secrets.QUAY_PASSWORD }}
       - name: Push Docker image
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         run: |
           docker push quay.io/krkn-chaos/krkn-http-load:latest
           docker push quay.io/krkn-chaos/krkn-http-load:${GITHUB_REF##*/}
